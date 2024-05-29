@@ -1,0 +1,17 @@
+
+include README.md
+include LICENSE
+include requirements.txt
+include setup.py
+
+# Include all files in the package directory
+recursive-include expkit *.py
+recursive-include expkit *.txt
+recursive-include expkit *.md
+
+# Include test files
+recursive-include tests *.py
+
+
+
+

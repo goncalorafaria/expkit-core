@@ -1,2 +1,2 @@
 # expkit
-Package for managing research experiments
+Package for managing research experiments.
