@@ -1,74 +1,12 @@
 import json
 from expkit.exp import Exp
 from expkit.pexp import PExp
-from expkit.eval import Evalutor, apply_eval
+from expkit.eval import Evalutor
 from typing import *
 from dataclasses import dataclass
 from functools import partial
 import copy
 import os
-
-
-@dataclass
-class GetExperimentOutput:
-    experiments: List[Exp]
-
-    def __str__(
-        self,
-    ):
-        return f"GetExperimentOutput(experiments={self.experiments})"
-
-    def __getitem__(self, index):
-        return self.experiments[index]
-
-    def get_and_stack(self, key):
-        return [exp.get(key) for exp in self.experiments]
-
-    def sort(self, key: str):
-        self.experiments.sort(key=lambda exp: exp.meta[key])
-        return self
-
-    def print_average_metrics_table(self, metrics=[]):
-        metric_names = "".join([f"\t{m}" for m in metrics])
-
-        print(f"Experiment:\t\t\t{metric_names}")
-        for (
-            i,
-            exp,
-        ) in enumerate(self.experiments):
-
-            metric_values = ""
-            for m in metrics:
-                try:
-                    value = exp.get(m)
-                    metric_values += f"\t{value:.4f}"
-                except:
-                    metric_values += "\t-"
-
-            print(f"ExperimentResults:--{exp.get_name()}{metric_values}")
-
-    def __len__(
-        self,
-    ):
-        return len(self.experiments)
-
-    def map(self, func):
-        return GetExperimentOutput(
-            experiments=list(
-                map(
-                    func,
-                    copy.deepcopy(self.experiments),
-                )
-            )
-        )
-
-    def filter(self, func):
-        return GetExperimentOutput(list(filter(func, self.experiments)))
-
-    def unique(self):
-        return GetExperimentOutput(
-            list({json.dumps(e.meta): e for e in self.experiments}.values())
-        )
 
 
 class ExpSetup:
@@ -114,18 +52,6 @@ class ExpSetup:
         for e in experiments_to_add:
             self.add_experiment(e)
 
-    def map(self, func):
-        """
-        Apply a function to each experiment in the list.
-
-        Args:
-            func (callable): The function to be applied to each experiment.
-
-        Returns:
-            None
-        """
-        self.experiments = list(map(func, self.experiments))
-
     def add_experiment(self, exp):
         """
         Add an experiment to the list.
@@ -137,6 +63,9 @@ class ExpSetup:
             None
         """
         self.experiments.append(exp)
+
+    def __getitem__(self, index):
+        return self.experiments[index]
 
     def _process_experiment(
         self,
@@ -171,7 +100,7 @@ class ExpSetup:
         """
         return [e.meta for e in self.experiments]
 
-    def get(
+    def query(
         self,
         criteria,
     ):
@@ -200,9 +129,86 @@ class ExpSetup:
                 )
             ]
 
-        return GetExperimentOutput(experiments=base_experiments)
+        return SetupResults(experiments=base_experiments)
 
-    def get_meta_support(self, common, axis_of_variation):
+    def _map(self, func):
+        """
+        Apply a function to each experiment in the list.
+
+        Args:
+            func (callable): The function to be applied to each experiment.
+
+        Returns:
+            None
+        """
+        self.experiments = list(map(func, self.experiments))
+
+    def run_evaluation(
+        self,
+        evaluator: Evalutor,
+    ):
+        """
+        Run evaluation on the experiments.
+
+        Args:
+            evaluator (Evalutor): The evaluator object to perform the evaluation.
+            key (str): The key to be used for evaluation.
+
+        Returns:
+            None
+        """
+        self.experiments = self._map(func=evaluator)
+
+    def save(self):
+        """
+        Save the experiments.
+
+        Returns:
+            None
+        """
+        for e in self.experiments:
+            e.save(self.base_path)
+
+
+@dataclass
+class SetupResults(ExpSetup):
+
+    def __init__(self, experiments):
+        self.experiments = experiments
+        self.ops = []
+        self.base_path = ""
+
+    def __str__(
+        self,
+    ):
+        return f"SetupResults(experiments={self.experiments})"
+
+    # def __getitem__(self, index):
+    #    return self.experiments[index]
+
+    def get_and_stack(self, key):
+        return [exp.get(key) for exp in self.experiments]
+
+    def print_get_table(self, *gets):
+        metric_names = "".join([f"\t{m}" for m in gets])
+
+        print(f"Experiment:\t\t\t{metric_names}")
+        for (
+            i,
+            exp,
+        ) in enumerate(self.experiments):
+
+            metric_values = ""
+            for m in gets:
+                try:
+                    value = exp.get(m)
+                    metric_values += f"\t{value:.4f}"
+                except:
+                    metric_values += "\t-"
+
+            print(f"ExperimentResults:--{exp.get_name()}{metric_values}")
+
+    def get_support(self, axis_of_variation):
         """
         Get the support for metadata based on common criteria and axis of variation.
 
@@ -213,7 +219,7 @@ class ExpSetup:
         Returns:
             dict: A dictionary containing the support for each axis of variation.
         """
-        exps = self.get(common)
+        exps = self.experiments
 
         exp_on_axis = exps.map(
             lambda x: {k: x.meta.get(k, -1) for k in axis_of_variation}
@@ -232,29 +238,29 @@ class ExpSetup:
 
         return support
 
-    def run_evaluation(
+    def __len__(
         self,
-        evaluator: Evalutor,
-        key: str,
     ):
-        """
-        Run evaluation on the experiments.
+        return len(self.experiments)
 
-        Args:
-            evaluator (Evalutor): The evaluator object to perform the evaluation.
-            key (str): The key to be used for evaluation.
+    def map(self, func):
+        return SetupResults(
+            experiments=list(
+                map(
+                    func,
+                    copy.deepcopy(self.experiments),
+                )
+            )
+        )
 
-        Returns:
-            None
-        """
-        self.experiments = self.map(func=partial(evaluator.apply, key=key))
+    def filter(self, func):
+        return SetupResults(list(filter(func, self.experiments)))
 
-    def save(self):
-        """
-        Save the experiments.
+    def unique(self):
+        return SetupResults(
+            list({json.dumps(e.meta): e for e in self.experiments}.values())
+        )
 
-        Returns:
-            None
-        """
-        for e in self.experiments:
-            e.save(self.base_path)
+    def sort(self, key: str):
+        self.experiments.sort(key=lambda exp: exp.meta[key])
+        return self

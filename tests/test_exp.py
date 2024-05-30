@@ -38,7 +38,7 @@ class TestExp(unittest.TestCase):
         self.assertEqual(exp.instances[1].outputs, outputs[1])
 
     def test_save_and_load(self):
-        base_dir = "/tmp/"
+        base_dir = "data/"
         # Test saving and loading an Exp instance
         exp = Exp(name="test_exp", meta={"author": "John Doe"})
         inputs = [{"input_1": 1, "input_2": 2}, {"input_3": 3, "input_4": 4}]

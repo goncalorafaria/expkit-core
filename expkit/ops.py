@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from enum import Enum
-
+import numpy as np
 from typing import *
+import copy
 
 
 class OperationType(Enum):
@@ -82,3 +83,18 @@ class Operation:
             return self.func(exp)
         else:
             raise ValueError(f"Operation type {self.type} not recognized")
+
+
+class EvalMeanOperation(Operation):
+    def __init__(
+        self,
+        entry_key="mean_reward",
+        eval_key="da",
+    ):
+        super().__init__(type=OperationType.EVAL, func=self.apply, key=eval_key)
+        self.entry_key = entry_key
+
+    def apply(self, instance_evals):
+
+        mean = np.mean(list(map(lambda x: x[self.entry_key], instance_evals)))
+        return mean

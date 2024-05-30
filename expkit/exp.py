@@ -271,7 +271,7 @@ class Exp:
         )
 
         eval_files = {
-            rf.split(".")[0].split("_")[1]: rf for rf in run_files if "eval_" in rf
+            rf.split(".")[0].split("-")[1]: rf for rf in run_files if "eval-" in rf
         }
 
         for k, fn in eval_files.items():
