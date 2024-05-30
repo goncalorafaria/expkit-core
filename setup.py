@@ -7,14 +7,14 @@ with open("requirements.txt", "r") as fr:
     installation_requirements = fr.readlines()
 
 setuptools.setup(
-    name="expkit",
-    version="1.0.0",
+    name="expkit-core",
+    version="1.0.1",
     author="Goncalo Faria",
     author_email="goncalofaria.research@gmail.com",
     description="Package for managing research experiments.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/goncalorafaria/expkit",
+    url="https://github.com/goncalorafaria/expkit-core",
     packages=setuptools.find_packages(),
     install_requires=installation_requirements,
     python_requires=">=3.6.0",

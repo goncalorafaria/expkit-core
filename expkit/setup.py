@@ -183,9 +183,6 @@ class SetupResults(ExpSetup):
     ):
         return f"SetupResults(experiments={self.experiments})"
 
-    # def __getitem__(self, index):
-    #    return self.experiments[index]
-
     def get_and_stack(self, key):
         return [exp.get(key) for exp in self.experiments]
 
