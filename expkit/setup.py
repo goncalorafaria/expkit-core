@@ -169,6 +169,13 @@ class ExpSetup:
         for e in self.experiments:
             e.save(self.base_path)
 
+    def __str__(
+        self,
+    ):
+        return f"ExpSetup(experiments={self.experiments})"
+
+    def __repr__(self) -> str:
+        return self.__str__()
 
 @dataclass
 class SetupResults(ExpSetup):
@@ -261,3 +268,12 @@ class SetupResults(ExpSetup):
     def sort(self, key: str):
         self.experiments.sort(key=lambda exp: exp.meta[key])
         return self
+    
+    def __str__(
+        self,
+    ):
+        return f"ExpResults(experiments={self.experiments})"
+     
+    def __repr__(self) -> str:
+        return self.__str__()
+

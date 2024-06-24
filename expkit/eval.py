@@ -17,6 +17,9 @@ class Evalutor(Operation):
     def apply(self, exp: Exp) -> Exp:
 
         evals = self.eval(exp)
+        
         exp.add_eval(self.eval_name, evals)
 
         return exp
+
+

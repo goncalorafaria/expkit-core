@@ -4,7 +4,7 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import *
-
+import uuid
 
 from dataclasses import dataclass
 from typing import *
@@ -90,7 +90,7 @@ class Instance:
 
 
 class Exp:
-    def __init__(self, name: str, meta: Dict[str, str]):
+    def __init__(self, name: str=None, meta: Dict[str, str]=None):
         """
         Initialize an Exp object.
 
@@ -100,8 +100,8 @@ class Exp:
         """
         self.evals = {}
         self.instances = []
-        self.meta = meta
-        self.name = name
+        self.meta = {} if meta is None else meta
+        self.name = str(uuid.uuid4()) if name is None else name
 
     def check_property(self, k, v):
         """
@@ -133,8 +133,14 @@ class Exp:
         """
         Return a string representation of the Exp object.
         """
-        return f"Experiment(instance={len(self.instances)} elements,evals={list(self.evals.keys())})"
+        return f"Experiment[{self.name}](instance={len(self.instances)} elements,evals={list(self.evals.keys())}, meta={self.meta})"
 
+    def __repr__(self) -> str:
+        """
+        Return a string representation of the Exp object.
+        """
+        return self.__str__()
+    
     def get(self, key):
         """
         Get the value associated with a specific key.
@@ -223,8 +229,12 @@ class Exp:
             with open(os.path.join(save_path, fn), "w") as fp:
                 json.dump(data, fp=fp)
 
+    
+    def has_eval(self, key):
+        return key in self.evals
+    
     @staticmethod
-    def load(base_path, experiment_name):
+    def load(base_path, name):
         """
         Load an experiment from disk.
 
@@ -243,7 +253,7 @@ class Exp:
             "data.json",
         ]
 
-        dir_path = os.path.join(base_path, experiment_name)
+        dir_path = os.path.join(base_path, name)
 
         run_files = os.listdir(dir_path)
 
@@ -259,7 +269,7 @@ class Exp:
             data = json.load(fp)
 
         exp = Exp(
-            name=experiment_name,
+            name=name,
             meta=meta,
         )
 
