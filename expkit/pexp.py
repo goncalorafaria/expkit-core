@@ -22,7 +22,12 @@ class PExp(Exp):
     ops: Dict[str, Operation]
     ops_results: Dict[str, Any]
 
-    def __init__(self, ops: Dict[str, Operation], **exp_args):
+    def __init__(
+        self,
+        exp: Exp,
+        ops: Dict[str, Operation],
+        **exp_args,
+    ):
         """
         Initializes a new instance of the PExp class.
 
@@ -34,14 +39,40 @@ class PExp(Exp):
         self.ops = ops
         self.ops_results = {}
 
-        super().__init__(**exp_args)
+        super().__init__(
+            name=exp.name,
+            meta=exp.meta,
+            **exp_args,
+        )
+
+        self.instances = exp.instances
+        self.evals = exp.evals
+        self.save_path = exp.save_path
+
+    def __deepcopy__(self, memo):
+
+        e = super().__deepcopy__(memo)
+
+        return PExp(
+            exp=e,
+            ops=self.ops,
+            lazy=self.lazy,
+        )
 
     def run_ops(self):
         """
         Executes the operations associated with the experiment.
 
         """
-        self.ops_results = {key: op(self) for key, op in self.ops.items()}
+
+        if self.lazy:
+            self.refresh()
+
+        self.ops_results = {
+            key: op(self)
+            for key, op in self.ops.items()
+        }
+        return self
 
     def get(self, key):
         """
@@ -57,16 +88,26 @@ class PExp(Exp):
             ValueError: If the key is not found in the experiment or the operations results.
 
         """
+        if self.lazy:
+            self.refresh()
+
         try:
             return super().get(key)
         except:
             if key in self.ops_results:
                 return self.ops_results[key]
             else:
-                raise ValueError(f"key : {key} not found")
+                raise ValueError(
+                    f"key : {key} not found"
+                )
 
     @staticmethod
-    def load(base_path, experiment_name, ops: Dict[str, Operation]):
+    def load(
+        base_path,
+        experiment_name,
+        ops: Dict[str, Operation],
+        **special_kwargs,
+    ):
         """
         Loads a parameterized experiment from a file.
 
@@ -79,13 +120,16 @@ class PExp(Exp):
             PExp: The loaded parameterized experiment.
 
         """
-        exp = Exp.load(base_path, experiment_name)
+        exp = Exp.load(
+            base_path,
+            experiment_name,
+            **special_kwargs,
+        )
 
-        pexp = PExp(name=exp.name, meta=exp.meta, ops=ops)
-
-        pexp.instances = exp.instances
-        pexp.evals = exp.evals
-
-        pexp.ops = ops
+        pexp = PExp(
+            exp=exp,
+            ops=ops,
+            **special_kwargs,
+        )
 
         return pexp

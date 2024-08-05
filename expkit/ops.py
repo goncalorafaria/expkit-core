@@ -32,7 +32,10 @@ class Operation:
         Returns:
             Operation: The created operation.
         """
-        return Operation(type=OperationType.DATA, func=func)
+        return Operation(
+            type=OperationType.DATA,
+            func=func,
+        )
 
     @staticmethod
     def eval(func, key: str):
@@ -46,7 +49,11 @@ class Operation:
         Returns:
             Operation: The created operation.
         """
-        return Operation(type=OperationType.EVAL, func=func, key=key)
+        return Operation(
+            type=OperationType.EVAL,
+            func=func,
+            key=key,
+        )
 
     @staticmethod
     def exp(func):
@@ -59,7 +66,10 @@ class Operation:
         Returns:
             Operation: The created operation.
         """
-        return Operation(type=OperationType.EXP, func=func)
+        return Operation(
+            type=OperationType.EXP,
+            func=func,
+        )
 
     def __call__(self, exp):
         """
@@ -77,24 +87,125 @@ class Operation:
 
         if self.type == OperationType.DATA:
             return self.func(exp.instances)
-        elif self.type == OperationType.EVAL:
-            return self.func(exp.evals[self.key])
+        elif (
+            self.type == OperationType.EVAL
+        ):
+            return self.func(
+                exp.evals[self.key]
+            )
         elif self.type == OperationType.EXP:
             return self.func(exp)
         else:
-            raise ValueError(f"Operation type {self.type} not recognized")
+            raise ValueError(
+                f"Operation type {self.type} not recognized"
+            )
 
 
-class EvalMeanOperation(Operation):
+def identity(x):
+    return x
+
+
+def last(lst):
+    return lst[-1]
+
+
+def proj(key):
+    return lambda x: x[key]
+
+
+class EvalReduceOperation(Operation):
     def __init__(
         self,
+        reduce_func,
         entry_key="mean_reward",
         eval_key="da",
+        experiment_wide_reduce=identity,
+        n=None,
     ):
-        super().__init__(type=OperationType.EVAL, func=self.apply, key=eval_key)
+        super().__init__(
+            type=OperationType.EVAL,
+            func=self.apply,
+            key=eval_key,
+        )
         self.entry_key = entry_key
+        self.reduce = reduce_func
+        self.experiment_wide_reduce = (
+            experiment_wide_reduce
+        )
+        self.n = n
 
     def apply(self, instance_evals):
 
-        mean = np.mean(list(map(lambda x: x[self.entry_key], instance_evals)))
-        return mean
+        v = self.experiment_wide_reduce(
+            list(
+                map(
+                    lambda x: self.reduce(
+                        x[self.entry_key][
+                            : self.n
+                        ]
+                        if self.n
+                        is not None
+                        else x[
+                            self.entry_key
+                        ]
+                    ),
+                    instance_evals,
+                )
+            )
+        )
+
+        return v
+
+
+class EvalMean(EvalReduceOperation):
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        super().__init__(
+            reduce_func=np.mean, **kwargs
+        )
+
+
+class EvalMax(EvalReduceOperation):
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        super().__init__(
+            reduce_func=np.max, **kwargs
+        )
+
+
+class EvalLast(EvalReduceOperation):
+    def __init__(
+        self,
+        **kwargs,
+    ):
+        super().__init__(
+            reduce_func=last, **kwargs
+        )
+
+
+class EvalTotalMean(EvalMean):
+    def __init__(self, **kwargs):
+        super().__init__(
+            experiment_wide_reduce=np.mean,
+            **kwargs,
+        )
+
+
+class EvalMeanLast(EvalLast):
+    def __init__(self, **kwargs):
+        super().__init__(
+            experiment_wide_reduce=np.mean,
+            **kwargs,
+        )
+
+
+class EvalMeanMax(EvalMax):
+    def __init__(self, **kwargs):
+        super().__init__(
+            experiment_wide_reduce=np.mean,
+            **kwargs,
+        )

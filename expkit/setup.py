@@ -23,6 +23,8 @@ class ExpSetup:
         self,
         base_path,
         ops={},
+        lazy=False,
+        load_instances=True,
     ):
         """
         Initialize the ExperimentData object.
@@ -35,6 +37,8 @@ class ExpSetup:
         self.base_path = base_path
         self.experiments = []
         self.ops = ops
+        self.lazy = lazy
+        self.load_instances = load_instances
 
         self._load_data()
 
@@ -46,7 +50,15 @@ class ExpSetup:
         """
 
         experiments_to_add = list(
-            filter(None, map(self._process_experiment, os.listdir(self.base_path)))
+            filter(
+                None,
+                map(
+                    self._process_experiment,
+                    os.listdir(
+                        self.base_path
+                    ),
+                ),
+            )
         )
 
         for e in experiments_to_add:
@@ -64,8 +76,26 @@ class ExpSetup:
         """
         self.experiments.append(exp)
 
+    def __len__(self):
+        return len(self.experiments)
+
     def __getitem__(self, index):
-        return self.experiments[index]
+
+        if isinstance(index, int):
+            return self.experiments[index]
+
+        else:
+            matches = self.query(
+                {"name": index}
+            )
+            if len(matches) > 0:
+                return matches[0]
+
+            else:
+                print(index)
+                raise KeyError(
+                    f"No experiment with name {index}"
+                )
 
     def _process_experiment(
         self,
@@ -82,12 +112,34 @@ class ExpSetup:
         """
 
         try:
-            experiment = PExp.load(self.base_path, experiment_name, ops=self.ops)
-            experiment.run_ops()
+            experiment = PExp.load(
+                self.base_path,
+                experiment_name,
+                ops=self.ops,
+                lazy=self.lazy,
+                load_instances=self.load_instances,
+            )
+            # experiment.run_ops()
+
             return experiment
         except Exception as e:
-            print(f"Missing data for : {experiment_name}: {e}")
-            return
+            print(
+                f"Missing data for : {self.base_path}- {experiment_name}: {e}"
+            )
+            return None
+
+    def run_ops(self):
+
+        def safe_callable(x):
+
+            try:
+                return x.run_ops()
+            except Exception as e:
+                print("ops-error:", e)
+                return None
+
+        self._map(safe_callable)
+        return self
 
     def meta(
         self,
@@ -98,7 +150,9 @@ class ExpSetup:
         Returns:
             list: A list of metadata dictionaries for each experiment.
         """
-        return [e.meta for e in self.experiments]
+        return [
+            e.meta for e in self.experiments
+        ]
 
     def query(
         self,
@@ -129,7 +183,13 @@ class ExpSetup:
                 )
             ]
 
-        return SetupResults(experiments=base_experiments)
+        new_setup = copy.deepcopy(self)
+
+        new_setup.experiments = (
+            base_experiments
+        )
+
+        return new_setup
 
     def _map(self, func):
         """
@@ -141,7 +201,17 @@ class ExpSetup:
         Returns:
             None
         """
-        self.experiments = list(map(func, self.experiments))
+        self.experiments = list(
+            filter(
+                None,
+                (
+                    map(
+                        func,
+                        self.experiments,
+                    )
+                ),
+            )
+        )
 
     def run_evaluation(
         self,
@@ -157,7 +227,9 @@ class ExpSetup:
         Returns:
             None
         """
-        self.experiments = self._map(func=evaluator)
+        self.experiments = self._map(
+            func=evaluator
+        )
 
     def save(self):
         """
@@ -169,6 +241,12 @@ class ExpSetup:
         for e in self.experiments:
             e.save(self.base_path)
 
+    def keys(self):
+        return [
+            e.get_name()
+            for e in self.experiments
+        ]
+
     def __str__(
         self,
     ):
@@ -177,26 +255,26 @@ class ExpSetup:
     def __repr__(self) -> str:
         return self.__str__()
 
-@dataclass
-class SetupResults(ExpSetup):
+    def eager(self):
+        self.lazy = False
+        self._map(lambda x: x.refresh())
 
-    def __init__(self, experiments):
-        self.experiments = experiments
-        self.ops = []
-        self.base_path = ""
+        return self
 
-    def __str__(
-        self,
-    ):
-        return f"SetupResults(experiments={self.experiments})"
-
-    def get_and_stack(self, key):
-        return [exp.get(key) for exp in self.experiments]
+    def get_all(self, key):
+        return [
+            exp.get(key)
+            for exp in self.experiments
+        ]
 
     def print_get_table(self, *gets):
-        metric_names = "".join([f"\t{m}" for m in gets])
+        metric_names = "".join(
+            [f"\t{m}" for m in gets]
+        )
 
-        print(f"Experiment:\t\t\t{metric_names}")
+        print(
+            f"Experiment:\t\t\t{metric_names}"
+        )
         for (
             i,
             exp,
@@ -206,13 +284,19 @@ class SetupResults(ExpSetup):
             for m in gets:
                 try:
                     value = exp.get(m)
-                    metric_values += f"\t{value:.4f}"
+                    metric_values += (
+                        f"\t{value:.4f}"
+                    )
                 except:
                     metric_values += "\t-"
 
-            print(f"ExperimentResults:--{exp.get_name()}{metric_values}")
+            print(
+                f"ExperimentResults:--{exp.get_name()}{metric_values}"
+            )
 
-    def get_support(self, axis_of_variation):
+    def get_support(
+        self, axis_of_variation
+    ):
         """
         Get the support for metadata based on common criteria and axis of variation.
 
@@ -226,10 +310,15 @@ class SetupResults(ExpSetup):
         exps = self.experiments
 
         exp_on_axis = exps.map(
-            lambda x: {k: x.meta.get(k, -1) for k in axis_of_variation}
+            lambda x: {
+                k: x.meta.get(k, -1)
+                for k in axis_of_variation
+            }
         )
 
-        support = {k: [] for k in axis_of_variation}
+        support = {
+            k: [] for k in axis_of_variation
+        }
 
         for e in exp_on_axis:
             for k, v in e.items():
@@ -242,38 +331,49 @@ class SetupResults(ExpSetup):
 
         return support
 
-    def __len__(
-        self,
-    ):
-        return len(self.experiments)
+    def safe_map(self, func):
 
-    def map(self, func):
-        return SetupResults(
-            experiments=list(
-                map(
-                    func,
-                    copy.deepcopy(self.experiments),
-                )
+        self._map(
+            lambda experiment: (
+                func(experiment)
+                if not experiment.islocked()
+                else experiment
             )
         )
 
-    def filter(self, func):
-        return SetupResults(list(filter(func, self.experiments)))
+        return self
 
-    def unique(self):
-        return SetupResults(
-            list({json.dumps(e.meta): e for e in self.experiments}.values())
+    def map(self, func):
+
+        new_setup = copy.deepcopy(self)
+        new_setup._map(func)
+
+        return new_setup
+
+    def filter(self, func):
+        new_setup = copy.deepcopy(self)
+
+        new_setup.experiments = list(
+            filter(func, self.experiments)
         )
 
-    def sort(self, key: str):
-        self.experiments.sort(key=lambda exp: exp.meta[key])
-        return self
-    
-    def __str__(
-        self,
-    ):
-        return f"ExpResults(experiments={self.experiments})"
-     
-    def __repr__(self) -> str:
-        return self.__str__()
+        return new_setup
 
+    def unique(self):
+        new_setup = copy.deepcopy(self)
+
+        new_setup.experiments = list(
+            {
+                json.dumps(e.meta): e
+                for e in self.experiments
+            }.values()
+        )
+
+        return new_setup
+
+    def sort(self, key: str):
+        new_setup = copy.deepcopy(self)
+        new_setup.experiments.sort(
+            key=lambda exp: exp.meta[key]
+        )
+        return new_setup
