@@ -1,5 +1,5 @@
 import abc
-from expkit.exp import Exp, InstanceEval
+from expkit.exp import Exp  # , InstanceEval
 from expkit.ops import (
     Operation,
     OperationType,
@@ -25,14 +25,12 @@ class Evalutor(Operation):
 
     def eval(
         self, experiment: Exp
-    ) -> List[InstanceEval]:
+    ) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
     def apply(self, exp: Exp) -> Exp:
 
-        exp.refresh()
-
-        if self.eval_name in exp.evals:
+        if exp.has_eval(self.eval_name):
             logging.info(
                 f"Skipping evaluation {self.eval_name} to experiment {exp.get_name()}"
             )
@@ -46,11 +44,6 @@ class Evalutor(Operation):
                 self.eval_name,
                 self.eval(exp),
             )
-
-            directory = os.path.dirname(
-                exp.save_path
-            )
-            exp.save(directory)
 
             logging.info(
                 f"Finished evaluation {self.eval_name} to experiment {exp.get_name()}"

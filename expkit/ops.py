@@ -86,12 +86,14 @@ class Operation:
         """
 
         if self.type == OperationType.DATA:
-            return self.func(exp.instances)
+            return self.func(
+                exp.instances()
+            )
         elif (
             self.type == OperationType.EVAL
         ):
             return self.func(
-                exp.evals[self.key]
+                exp.get_eval(self.key)
             )
         elif self.type == OperationType.EXP:
             return self.func(exp)

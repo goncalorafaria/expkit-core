@@ -1,5 +1,6 @@
 from expkit.exp import Exp
 from expkit.ops import *
+from expkit.storage import Storage
 from typing import *
 
 
@@ -24,7 +25,6 @@ class PExp(Exp):
 
     def __init__(
         self,
-        exp: Exp,
         ops: Dict[str, Operation],
         **exp_args,
     ):
@@ -40,33 +40,29 @@ class PExp(Exp):
         self.ops_results = {}
 
         super().__init__(
-            name=exp.name,
-            meta=exp.meta,
             **exp_args,
         )
 
-        self.instances = exp.instances
-        self.evals = exp.evals
-        self.save_path = exp.save_path
-
     def __deepcopy__(self, memo):
 
-        e = super().__deepcopy__(memo)
-
-        return PExp(
-            exp=e,
-            ops=self.ops,
-            lazy=self.lazy,
+        e = PExp(
+            name=self.name,
+            meta=copy.deepcopy(
+                self.meta, memo
+            ),
+            storage=copy.deepcopy(
+                self.document_storage.storage()
+            ),
+            ops=copy.deepcopy(self.ops),
         )
+
+        return e
 
     def run_ops(self):
         """
         Executes the operations associated with the experiment.
 
         """
-
-        if self.lazy:
-            self.refresh()
 
         self.ops_results = {
             key: op(self)
@@ -88,9 +84,6 @@ class PExp(Exp):
             ValueError: If the key is not found in the experiment or the operations results.
 
         """
-        if self.lazy:
-            self.refresh()
-
         try:
             return super().get(key)
         except:
@@ -103,10 +96,10 @@ class PExp(Exp):
 
     @staticmethod
     def load(
-        base_path,
-        experiment_name,
+        storage: Storage,
+        name: str,
         ops: Dict[str, Operation],
-        **special_kwargs,
+        **kwargs,
     ):
         """
         Loads a parameterized experiment from a file.
@@ -120,16 +113,13 @@ class PExp(Exp):
             PExp: The loaded parameterized experiment.
 
         """
-        exp = Exp.load(
-            base_path,
-            experiment_name,
-            **special_kwargs,
-        )
 
         pexp = PExp(
-            exp=exp,
+            name=name,
+            meta=None,
+            storage=storage,
             ops=ops,
-            **special_kwargs,
+            **kwargs,
         )
 
         return pexp

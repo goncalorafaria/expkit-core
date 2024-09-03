@@ -2,6 +2,7 @@ import json
 from expkit.exp import Exp
 from expkit.pexp import PExp
 from expkit.eval import Evalutor
+from expkit.storage import Storage
 from typing import *
 from dataclasses import dataclass
 from functools import partial
@@ -21,10 +22,8 @@ class ExpSetup:
 
     def __init__(
         self,
-        base_path,
+        storage,
         ops={},
-        lazy=False,
-        load_instances=True,
     ):
         """
         Initialize the ExperimentData object.
@@ -34,11 +33,9 @@ class ExpSetup:
             ops (dict): A dictionary of functions to be applied to each experiment's full results.
         """
 
-        self.base_path = base_path
+        self.storage = storage
         self.experiments = []
         self.ops = ops
-        self.lazy = lazy
-        self.load_instances = load_instances
 
         self._load_data()
 
@@ -49,20 +46,15 @@ class ExpSetup:
         Load the experiment data from the base path.
         """
 
-        experiments_to_add = list(
+        self.experiments = list(
             filter(
                 None,
                 map(
                     self._process_experiment,
-                    os.listdir(
-                        self.base_path
-                    ),
+                    self.storage.keys(),
                 ),
             )
         )
-
-        for e in experiments_to_add:
-            self.add_experiment(e)
 
     def add_experiment(self, exp):
         """
@@ -113,11 +105,9 @@ class ExpSetup:
 
         try:
             experiment = PExp.load(
-                self.base_path,
-                experiment_name,
+                storage=self.storage,
+                name=experiment_name,
                 ops=self.ops,
-                lazy=self.lazy,
-                load_instances=self.load_instances,
             )
             # experiment.run_ops()
 
@@ -231,15 +221,14 @@ class ExpSetup:
             func=evaluator
         )
 
-    def save(self):
+    def save(self, new_storage: Storage):
         """
         Save the experiments.
 
         Returns:
             None
         """
-        for e in self.experiments:
-            e.save(self.base_path)
+        self.storage.to(new_storage)
 
     def keys(self):
         return [
@@ -254,12 +243,6 @@ class ExpSetup:
 
     def __repr__(self) -> str:
         return self.__str__()
-
-    def eager(self):
-        self.lazy = False
-        self._map(lambda x: x.refresh())
-
-        return self
 
     def get_all(self, key):
         return [
@@ -333,13 +316,20 @@ class ExpSetup:
 
     def safe_map(self, func):
 
-        self._map(
-            lambda experiment: (
-                func(experiment)
-                if not experiment.islocked()
-                else experiment
-            )
-        )
+        def safe_apply_func(experiment):
+            try:
+                return (
+                    func(experiment)
+                    if not experiment.islocked()
+                    else experiment
+                )
+            except Exception as e:
+                print(
+                    f"Error in applying function: {e} - {experiment.get_name()}"
+                )
+                return experiment
+
+        self._map(safe_apply_func)
 
         return self
 
@@ -359,12 +349,22 @@ class ExpSetup:
 
         return new_setup
 
-    def unique(self):
+    def unique(self, key=None):
         new_setup = copy.deepcopy(self)
+
+        if key is None:
+
+            def key_factory(exp):
+                return json.dumps(exp.meta)
+
+        else:
+
+            def key_factory(exp):
+                return exp.get(key)
 
         new_setup.experiments = list(
             {
-                json.dumps(e.meta): e
+                key_factory(e): e
                 for e in self.experiments
             }.values()
         )
@@ -374,6 +374,6 @@ class ExpSetup:
     def sort(self, key: str):
         new_setup = copy.deepcopy(self)
         new_setup.experiments.sort(
-            key=lambda exp: exp.meta[key]
+            key=lambda exp: exp.get(key)
         )
         return new_setup
