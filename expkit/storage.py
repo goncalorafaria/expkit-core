@@ -7,6 +7,16 @@ import os
 import shutil
 from tqdm import tqdm
 from functools import partial
+from concurrent.futures import (
+    ThreadPoolExecutor,
+)
+import orjson
+import motor.motor_asyncio
+from pymongo import WriteConcern
+import asyncio
+from types import MappingProxyType
+import itertools
+import ijson
 
 LIST_SYM = ">>"
 
@@ -40,6 +50,11 @@ class Storage:
         self, exp_id: str, field: str
     ):  # field = {meta, evals, data}
         pass
+
+    def iterable(
+        self, exp_id: str, field: str
+    ):
+        return self.read(exp_id, field)
 
     def keys(
         self,
@@ -107,11 +122,12 @@ class Storage:
                 )
 
             try:
-                list_data = self.read_field(
+                list_data = self.read(
                     exp_id, field
                 )
             except (
-                KeyError
+                KeyError,
+                FileNotFoundError,
             ):  # not initialized.
                 list_data = []
 
@@ -128,7 +144,7 @@ class Storage:
             self.write(
                 exp_id,
                 field,
-                data,
+                list_data,
             )
 
         else:
@@ -152,11 +168,16 @@ class MemoryStorage(Storage):
         self,
         exp_id: str,
         force: bool = False,
+        exists_ok=False,
     ):
         if self.is_write_mode():
 
             if self.exists(exp_id):
-                if force:
+                if exists_ok:
+                    return self.document(
+                        exp_id
+                    )
+                elif force:
                     self.delete(exp_id)
                 else:
                     raise ValueError(
@@ -214,9 +235,7 @@ class MemoryStorage(Storage):
 
         if self.is_read_mode():
             collection = self.db[exp_id]
-            return deepcopy(
-                collection[field]
-            )
+            return collection[field]
         else:
             raise ValueError(
                 "Read mode is not enabled."
@@ -225,13 +244,10 @@ class MemoryStorage(Storage):
     def fields(self, exp_id: str):
         collection = self.db[exp_id]
         if self.is_read_mode():
-            return deepcopy(
-                list(
-                    filter(
-                        lambda x: x
-                        != "_id",
-                        collection.keys(),
-                    )
+            return list(
+                filter(
+                    lambda x: x != "_id",
+                    collection.keys(),
                 )
             )
         else:
@@ -244,10 +260,8 @@ class MemoryStorage(Storage):
     ):
         collection = self.db[exp_id]
         if self.is_read_mode():
-            return deepcopy(
-                list(
-                    collection[field].keys()
-                )
+            return list(
+                collection[field].keys()
             )
         else:
             raise ValueError(
@@ -262,9 +276,7 @@ class MemoryStorage(Storage):
     ):  # cover meta, eval, and data  fields
         collection = self.db[exp_id]
         if self.is_read_mode():
-            return deepcopy(
-                collection[field][key]
-            )
+            return collection[field][key]
         else:
             raise ValueError(
                 "Write mode is not enabled."
@@ -311,6 +323,7 @@ class DiskStorage(Storage):
         self,
         exp_id: str,
         force: bool = False,
+        exists_ok=False,
     ):
         if self.is_write_mode():
             dir_path = (
@@ -318,7 +331,11 @@ class DiskStorage(Storage):
             )
 
             if self.exists(exp_id):
-                if force:
+                if exists_ok:
+                    return self.document(
+                        exp_id
+                    )
+                elif force:
                     self.delete(exp_id)
                 else:
                     raise ValueError(
@@ -396,11 +413,13 @@ class DiskStorage(Storage):
     ):  # field = {meta, evals, data}
         if self.is_read_mode():
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
+
             with open(
-                file_path, "r"
+                file_path, "rb"
             ) as file:
-                data = json.load(file)
-            return deepcopy(data)
+                return orjson.loads(
+                    file.read()
+                )
         else:
             raise ValueError(
                 "Read mode is not enabled."
@@ -414,12 +433,10 @@ class DiskStorage(Storage):
                 f"{self.base_dir}/{exp_id}"
             )
             files = os.listdir(dir_path)
-            return deepcopy(
-                [
-                    file.split(".")[0]
-                    for file in files
-                ]
-            )
+            return [
+                file.split(".")[0]
+                for file in files
+            ]
         else:
             raise ValueError(
                 "Read mode is not enabled."
@@ -429,15 +446,10 @@ class DiskStorage(Storage):
         self, exp_id: str, field: str
     ):
         if self.is_read_mode():
-            file_path = f"{self.base_dir}/{exp_id}/{field}.json"
-            with open(
-                file_path, "r"
-            ) as file:
-                data = json.load(file)
 
-            return deepcopy(
-                list(data.keys())
-            )
+            data = self.read(exp_id, field)
+
+            return list(data.keys())
         else:
             raise ValueError(
                 "Read mode is not enabled."
@@ -450,12 +462,10 @@ class DiskStorage(Storage):
         key: str,
     ):
         if self.is_read_mode():
-            file_path = f"{self.base_dir}/{exp_id}/{field}.json"
-            with open(
-                file_path, "r"
-            ) as file:
-                data = json.load(file)
-            return deepcopy(data[key])
+
+            data = self.read(exp_id, field)
+
+            return data[key]
         else:
             raise ValueError(
                 "Read mode is not enabled."
@@ -469,10 +479,10 @@ class DiskStorage(Storage):
     ):
         if self.is_write_mode():
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
-            with open(
-                file_path, "w"
-            ) as file:
-                json.dump(data, file)
+
+            with open(file_path, "wb") as f:
+                f.write(orjson.dumps(data))
+
         else:
             raise ValueError(
                 "Write mode is not enabled."
@@ -486,24 +496,160 @@ class DiskStorage(Storage):
         data: List[dict],
     ):
         if self.is_write_mode():
+
+            existing_data = self.read(
+                exp_id, field
+            )
+
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
-            with open(
-                file_path, "r"
-            ) as file:
-                existing_data = json.load(
-                    file
-                )
+
             existing_data[key] = data
-            with open(
-                file_path, "w"
-            ) as file:
-                json.dump(
-                    existing_data, file
+
+            with open(file_path, "wb") as f:
+                f.write(
+                    orjson.dumps(
+                        existing_data
+                    )
                 )
+
         else:
             raise ValueError(
                 "Write mode is not enabled."
             )
+
+    def iterable(
+        self, exp_id: str, field: str
+    ):
+        if self.is_read_mode():
+            file_path = f"{self.base_dir}/{exp_id}/{field}.json"
+            with open(
+                file_path, "rb"
+            ) as file:
+                # ijson.items() returns an iterator over the items in the array
+                for item in ijson.items(
+                    file, "item"
+                ):
+                    yield item
+
+        else:
+            raise ValueError(
+                "Read mode is not enabled."
+            )
+
+    def append_subfield(
+        self,
+        exp_id: str,
+        field: str,
+        data: Any,
+    ):
+
+        if self.is_write_mode():
+
+            if not self.exists(exp_id):
+
+                raise ValueError(
+                    f"Collection {exp_id} does not exist."
+                )
+
+            file_path = f"{self.base_dir}/{exp_id}/{field}.json"
+
+            if not os.path.exists(
+                file_path
+            ):
+                # If file doesn't exist, create it with an empty list and add the first element
+                with open(
+                    file_path, "wb"
+                ) as file:
+                    file.write(
+                        b"["
+                        + orjson.dumps(data)
+                        + b"]"
+                    )
+            else:
+                # If file exists, append to the list while keeping the JSON valid
+                with open(
+                    file_path, "r+b"
+                ) as file:
+                    file.seek(
+                        0, os.SEEK_END
+                    )  # Move to the end of the file
+                    file_size = file.tell()
+
+                    # We need to move the file pointer back to before the closing bracket
+                    file.seek(file_size - 1)
+
+                    # Insert a comma if it's not the first item being added
+                    if (
+                        file_size > 2
+                    ):  # File size is greater than 2 means it's not an empty list (just [])
+                        file.write(b",")
+
+                    # Write the new instance and close the list with ']'
+                    file.write(
+                        orjson.dumps(data)
+                        + b"]"
+                    )
+
+        else:
+            raise ValueError(
+                "Write mode is not enabled."
+            )
+
+
+class CachedRODiskStorage(DiskStorage):
+    def __init__(self, base_dir: str):
+        super().__init__(base_dir, "r")
+        self.cache = MemoryStorage("rw")
+
+    def read(self, exp_id: str, field: str):
+
+        if field == "meta":
+            return super().read(
+                exp_id, field
+            )
+        else:
+            try:
+                return self.cache.read(
+                    exp_id, field
+                )
+            except Exception as e:
+                print("GET:", e, field)
+                data = super().read(
+                    exp_id, field
+                )
+
+                self.cache.create(
+                    exp_id, exists_ok=True
+                )
+
+                self.cache.write(
+                    exp_id, field, data
+                )
+                return data
+
+    def read_subfield(
+        self,
+        exp_id: str,
+        field: str,
+        key: str,
+    ):
+        try:
+            return self.cache.read_subfield(
+                exp_id, field, key
+            )
+        except:
+            data = super().read_subfield(
+                exp_id, field, key
+            )
+
+            self.cache.create(
+                exp_id, exists_ok=True
+            )
+
+            self.cache.write_subfield(
+                exp_id, field, key, data
+            )
+            return data
 
 
 def decode_mongo_format(data):
@@ -549,6 +695,18 @@ def decode_mongo_format(data):
     return data
 
 
+def chunked_iterable(iterable, size):
+    """Helper function to split iterable into chunks of given size."""
+    it = iter(iterable)
+    while True:
+        chunk = list(
+            itertools.islice(it, size)
+        )
+        if not chunk:
+            break
+        yield chunk
+
+
 class MongoStorage(Storage):
     # data structure
     # run_id : {meta: {key: value}, evals: {key: [ {key:value}] }, data: {input: { key:value}, outputs: [ { key:value}] }
@@ -557,6 +715,7 @@ class MongoStorage(Storage):
         self,
         uri: str,
         mode: str = "r",  # can be w, r, and rw
+        database_name: str = "test3",
     ):
         super().__init__(mode)
         self.uri = uri
@@ -564,7 +723,17 @@ class MongoStorage(Storage):
             uri
         )
         self.db = self.client.get_database(
-            "test3"
+            database_name
+        )
+
+        self.async_client = motor.motor_asyncio.AsyncIOMotorClient(
+            uri
+        )
+
+        self.async_db = (
+            self.async_client.get_database(
+                database_name
+            )
         )
 
     def get(self, exp_id: str):
@@ -609,13 +778,18 @@ class MongoStorage(Storage):
         self,
         exp_id: str,
         force: bool = False,
+        exists_ok=False,
     ):
         collection = self.db[exp_id]
 
         if self.is_write_mode():
 
             if self.exists(exp_id):
-                if force:
+                if exists_ok:
+                    return self.document(
+                        exp_id
+                    )
+                elif force:
                     self.delete(exp_id)
                 else:
                     raise ValueError(
@@ -707,18 +881,49 @@ class MongoStorage(Storage):
         exp_id: str,
         field: str,
         data: Any,
+        batch_size: int = 1,
     ):
         collection = self.db[exp_id]
+
         if self.is_write_mode():
 
             if isinstance(data, List):
-                for i, d in enumerate(data):
+
+                async def write_async():
+
+                    for batch in tqdm(
+                        list(
+                            chunked_iterable(
+                                data,
+                                batch_size,
+                            )
+                        )
+                    ):
+
+                        tasks = [
+                            self.write_subfield_async(
+                                exp_id,
+                                field,
+                                f"{LIST_SYM}{i}",
+                                d,
+                            )
+                            for i, d in enumerate(
+                                batch
+                            )
+                        ]
+                        await asyncio.gather(
+                            *tasks
+                        )
+
+                asyncio.run(write_async())
+
+                """for i, d in enumerate(data):
                     self.write_subfield(
                         exp_id,
                         field,
                         f"{LIST_SYM}{i}",
                         d,
-                    )
+                )"""
             else:
                 collection.update_one(
                     {},
@@ -737,9 +942,21 @@ class MongoStorage(Storage):
         key: str,
         data: Any,
     ):
+        asyncio.run(
+            self.write_subfield_async(
+                exp_id, field, key, data
+            )
+        )
+
+    async def write_subfield_async(
+        self,
+        exp_id: str,
+        field: str,
+        key: str,
+        data: Any,
+    ):
 
         if self.is_write_mode():
-
             if not self.exists(exp_id):
 
                 raise ValueError(
@@ -747,27 +964,43 @@ class MongoStorage(Storage):
                 )
 
             if isinstance(data, dict):
-                for k, v in data.items():
-                    self.write_subfield(
+
+                tasks = [
+                    self.write_subfield_async(
                         exp_id,
                         f"{field}.{key}",
                         k,
                         v,
                     )
+                    for k, v in data.items()
+                ]
+                await asyncio.gather(*tasks)
 
             elif isinstance(data, List):
-                for i, d in enumerate(data):
-                    self.write_subfield(
+
+                tasks = [
+                    self.write_subfield_async(
                         exp_id,
                         f"{field}.{key}",
                         f"{LIST_SYM}{i}",
                         d,
                     )
+                    for i, d in enumerate(
+                        data
+                    )
+                ]
+                await asyncio.gather(*tasks)
 
             else:
 
-                collection = self.db[exp_id]
-                collection.update_one(
+                collection = self.async_db.get_collection(
+                    exp_id,
+                    write_concern=WriteConcern(
+                        w=0
+                    ),
+                )
+
+                await collection.update_one(
                     {"_id": exp_id},
                     {
                         "$set": {
@@ -925,6 +1158,9 @@ class StorageDocument:
 
         for k in self.keys():
             data = self.read(k)
+            print(
+                f"~read {len(data)} elements from {k}"
+            )
             document.write(k, data)
 
         return document

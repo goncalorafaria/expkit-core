@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from typing import *
 import fcntl
+import types
 
 from expkit.storage import (
     Storage,
@@ -49,6 +50,7 @@ class Exp:
         name: str = None,
         meta: Dict[str, str] = None,
         storage: Storage = None,
+        **env_context_variables,
     ):
         """
         Initialize an Exp object.
@@ -73,6 +75,36 @@ class Exp:
             document_storage = (
                 storage.create(self.name)
             )
+
+            env_context_variables = {
+                k: v
+                for k, v in env_context_variables.items()
+                if not k.startswith("__")
+                and isinstance(
+                    v,
+                    (
+                        Dict,
+                        List,
+                        Tuple,
+                        str,
+                        int,
+                        float,
+                        bool,
+                    ),
+                )
+            }
+
+            if meta is None:
+                meta = env_context_variables
+            else:
+                meta = {
+                    **meta,
+                    **{
+                        k: v
+                        for k, v in env_context_variables.items()
+                        if k not in meta
+                    },
+                }
 
             document_storage.write(
                 "meta", meta
@@ -105,10 +137,19 @@ class Exp:
             document_storage
         )
 
-    def instances(self):
-        return self.document_storage.read(
-            "data"
-        )
+    def instances(
+        self, lazy_iterable=False
+    ):
+        if lazy_iterable:
+            return self.document_storage.iterable(
+                "data"
+            )
+        else:
+            return (
+                self.document_storage.read(
+                    "data"
+                )
+            )
 
     def evals(self):
 
@@ -360,21 +401,16 @@ if __name__ == "__main__":
     data_exemp = new_storage.document(
         "83c9f882-8922-4cac-a334-b0efcb735fe4"
     )
-
+    cool_outer_local_variable = 4
     exp1 = Exp.load(
         storage=storage,
         name="83c9f882-8922-4cac-a334-b0efcb735fe4",
     )
 
+    new_exp = Exp()
     import pdb
 
     pdb.set_trace()
-
-    new_exp = Exp(
-        name="testg15114132",
-        meta={"test": "test"},
-        storage=new_storage,
-    )
     # new_exp.save(new_storage, force=True)
 
     new_exp.add_instance(
