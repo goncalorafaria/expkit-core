@@ -46,14 +46,10 @@ class Storage:
     def exists(self, exp_id: str):
         pass
 
-    def read(
-        self, exp_id: str, field: str
-    ):  # field = {meta, evals, data}
+    def read(self, exp_id: str, field: str):  # field = {meta, evals, data}
         pass
 
-    def iterable(
-        self, exp_id: str, field: str
-    ):
+    def iterable(self, exp_id: str, field: str):
         return self.read(exp_id, field)
 
     def keys(
@@ -61,14 +57,10 @@ class Storage:
     ):  # field = {meta, evals, data}
         pass
 
-    def fields(
-        self, exp_id: str
-    ):  # field = {meta, evals, data}
+    def fields(self, exp_id: str):  # field = {meta, evals, data}
         pass
 
-    def read_field_keys(
-        self, exp_id: str, field: str
-    ):
+    def read_field_keys(self, exp_id: str, field: str):
         pass
 
     def read_subfield(
@@ -102,9 +94,7 @@ class Storage:
     def to(self, storage, **kwargs):
 
         for exp_id in tqdm(self.keys()):
-            self.document(exp_id).to(
-                storage, **kwargs
-            )
+            self.document(exp_id).to(storage, **kwargs)
 
     def append_subfield(
         self,
@@ -117,26 +107,18 @@ class Storage:
 
             if not self.exists(exp_id):
 
-                raise ValueError(
-                    f"Collection {exp_id} does not exist."
-                )
+                raise ValueError(f"Collection {exp_id} does not exist.")
 
             try:
-                list_data = self.read(
-                    exp_id, field
-                )
+                list_data = self.read(exp_id, field)
             except (
                 KeyError,
                 FileNotFoundError,
             ):  # not initialized.
                 list_data = []
 
-            if not isinstance(
-                list_data, list
-            ):
-                raise ValueError(
-                    f"Field:{field} is not a list."
-                )
+            if not isinstance(list_data, list):
+                raise ValueError(f"Field:{field} is not a list.")
 
             else:
                 list_data.append(data)
@@ -148,9 +130,7 @@ class Storage:
             )
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def __str__(self) -> str:
         return f"Storage(documents={self.keys()})"
@@ -174,15 +154,11 @@ class MemoryStorage(Storage):
 
             if self.exists(exp_id):
                 if exists_ok:
-                    return self.document(
-                        exp_id
-                    )
+                    return self.document(exp_id)
                 elif force:
                     self.delete(exp_id)
                 else:
-                    raise ValueError(
-                        f"Document {exp_id} already exists."
-                    )
+                    raise ValueError(f"Document {exp_id} already exists.")
 
             self.db[exp_id] = {
                 "_id": exp_id,
@@ -193,43 +169,31 @@ class MemoryStorage(Storage):
 
             return self.document(exp_id)
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def delete(self, exp_id: str):
         if self.is_write_mode():
             self.db.pop(exp_id)
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def get(self, exp_id: str):
         if self.is_read_mode():
             return deepcopy(self.db[exp_id])
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def keys(self):
         if self.is_read_mode():
-            return list(
-                self.db.keys()
-            ).copy()
+            return list(self.db.keys()).copy()
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def exists(self, exp_id: str):
         if self.is_read_mode():
             return exp_id in self.db
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def read(self, exp_id: str, field: str):
 
@@ -237,9 +201,7 @@ class MemoryStorage(Storage):
             collection = self.db[exp_id]
             return collection[field]
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def fields(self, exp_id: str):
         collection = self.db[exp_id]
@@ -251,22 +213,14 @@ class MemoryStorage(Storage):
                 )
             )
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
-    def read_field_keys(
-        self, exp_id: str, field: str
-    ):
+    def read_field_keys(self, exp_id: str, field: str):
         collection = self.db[exp_id]
         if self.is_read_mode():
-            return list(
-                collection[field].keys()
-            )
+            return list(collection[field].keys())
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def read_subfield(
         self,
@@ -278,9 +232,7 @@ class MemoryStorage(Storage):
         if self.is_read_mode():
             return collection[field][key]
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def write(
         self,
@@ -292,9 +244,7 @@ class MemoryStorage(Storage):
         if self.is_write_mode():
             collection[field] = data
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def write_subfield(
         self,
@@ -307,15 +257,11 @@ class MemoryStorage(Storage):
         if self.is_write_mode():
             collection[field][key] = data
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
 
 class DiskStorage(Storage):
-    def __init__(
-        self, base_dir: str, mode: str = "r"
-    ):
+    def __init__(self, base_dir: str, mode: str = "r"):
         super().__init__(mode)
         self.base_dir = base_dir
 
@@ -326,62 +272,42 @@ class DiskStorage(Storage):
         exists_ok=False,
     ):
         if self.is_write_mode():
-            dir_path = (
-                f"{self.base_dir}/{exp_id}"
-            )
+            dir_path = f"{self.base_dir}/{exp_id}"
 
             if self.exists(exp_id):
                 if exists_ok:
-                    return self.document(
-                        exp_id
-                    )
+                    return self.document(exp_id)
                 elif force:
                     self.delete(exp_id)
                 else:
-                    raise ValueError(
-                        f"Document {exp_id} already exists."
-                    )
+                    raise ValueError(f"Document {exp_id} already exists.")
 
-            os.makedirs(
-                dir_path, exist_ok=True
-            )
+            os.makedirs(dir_path, exist_ok=True)
 
             return self.document(exp_id)
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def delete(self, exp_id: str):
         if self.is_write_mode():
-            dir_path = (
-                f"{self.base_dir}/{exp_id}"
-            )
+            dir_path = f"{self.base_dir}/{exp_id}"
             shutil.rmtree(dir_path)
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def exists(self, exp_id: str):
         if self.is_read_mode():
-            dir_path = (
-                f"{self.base_dir}/{exp_id}"
-            )
+            dir_path = f"{self.base_dir}/{exp_id}"
             return os.path.exists(dir_path)
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def keys(self):
         if self.is_read_mode():
             return os.listdir(self.base_dir)
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def get(self, exp_id: str):
         if self.is_read_mode():
@@ -389,71 +315,42 @@ class DiskStorage(Storage):
             return {
                 "_id": exp_id,
                 **{
-                    subdir.split(".")[
-                        0
-                    ]: self.read(
+                    subdir.split(".")[0]: self.read(
                         exp_id,
-                        subdir.split(".")[
-                            0
-                        ],
+                        subdir.split(".")[0],
                     )
-                    for subdir in os.listdir(
-                        f"{self.base_dir}/{exp_id}"
-                    )
+                    for subdir in os.listdir(f"{self.base_dir}/{exp_id}")
                 },
             }
 
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
-    def read(
-        self, exp_id: str, field: str
-    ):  # field = {meta, evals, data}
+    def read(self, exp_id: str, field: str):  # field = {meta, evals, data}
         if self.is_read_mode():
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
 
-            with open(
-                file_path, "rb"
-            ) as file:
-                return orjson.loads(
-                    file.read()
-                )
+            with open(file_path, "rb") as file:
+                return orjson.loads(file.read())
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
-    def fields(
-        self, exp_id: str
-    ):  # field = {meta, evals, data}
+    def fields(self, exp_id: str):  # field = {meta, evals, data}
         if self.is_read_mode():
-            dir_path = (
-                f"{self.base_dir}/{exp_id}"
-            )
+            dir_path = f"{self.base_dir}/{exp_id}"
             files = os.listdir(dir_path)
-            return [
-                file.split(".")[0]
-                for file in files
-            ]
+            return [file.split(".")[0] for file in files]
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
-    def read_field_keys(
-        self, exp_id: str, field: str
-    ):
+    def read_field_keys(self, exp_id: str, field: str):
         if self.is_read_mode():
 
             data = self.read(exp_id, field)
 
             return list(data.keys())
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def read_subfield(
         self,
@@ -467,9 +364,7 @@ class DiskStorage(Storage):
 
             return data[key]
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def write(
         self,
@@ -484,9 +379,7 @@ class DiskStorage(Storage):
                 f.write(orjson.dumps(data))
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def write_subfield(
         self,
@@ -497,44 +390,28 @@ class DiskStorage(Storage):
     ):
         if self.is_write_mode():
 
-            existing_data = self.read(
-                exp_id, field
-            )
+            existing_data = self.read(exp_id, field)
 
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
 
             existing_data[key] = data
 
             with open(file_path, "wb") as f:
-                f.write(
-                    orjson.dumps(
-                        existing_data
-                    )
-                )
+                f.write(orjson.dumps(existing_data))
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
-    def iterable(
-        self, exp_id: str, field: str
-    ):
+    def iterable(self, exp_id: str, field: str):
         if self.is_read_mode():
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
-            with open(
-                file_path, "rb"
-            ) as file:
+            with open(file_path, "rb") as file:
                 # ijson.items() returns an iterator over the items in the array
-                for item in ijson.items(
-                    file, "item"
-                ):
+                for item in ijson.items(file, "item"):
                     yield item
 
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def append_subfield(
         self,
@@ -547,32 +424,18 @@ class DiskStorage(Storage):
 
             if not self.exists(exp_id):
 
-                raise ValueError(
-                    f"Collection {exp_id} does not exist."
-                )
+                raise ValueError(f"Collection {exp_id} does not exist.")
 
             file_path = f"{self.base_dir}/{exp_id}/{field}.json"
 
-            if not os.path.exists(
-                file_path
-            ):
+            if not os.path.exists(file_path):
                 # If file doesn't exist, create it with an empty list and add the first element
-                with open(
-                    file_path, "wb"
-                ) as file:
-                    file.write(
-                        b"["
-                        + orjson.dumps(data)
-                        + b"]"
-                    )
+                with open(file_path, "wb") as file:
+                    file.write(b"[" + orjson.dumps(data) + b"]")
             else:
                 # If file exists, append to the list while keeping the JSON valid
-                with open(
-                    file_path, "r+b"
-                ) as file:
-                    file.seek(
-                        0, os.SEEK_END
-                    )  # Move to the end of the file
+                with open(file_path, "r+b") as file:
+                    file.seek(0, os.SEEK_END)  # Move to the end of the file
                     file_size = file.tell()
 
                     # We need to move the file pointer back to before the closing bracket
@@ -585,15 +448,10 @@ class DiskStorage(Storage):
                         file.write(b",")
 
                     # Write the new instance and close the list with ']'
-                    file.write(
-                        orjson.dumps(data)
-                        + b"]"
-                    )
+                    file.write(orjson.dumps(data) + b"]")
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
 
 class CachedRODiskStorage(DiskStorage):
@@ -601,30 +459,23 @@ class CachedRODiskStorage(DiskStorage):
         super().__init__(base_dir, "r")
         self.cache = MemoryStorage("rw")
 
+    def clear(self):
+        self.cache = MemoryStorage("rw")
+
     def read(self, exp_id: str, field: str):
 
         if field == "meta":
-            return super().read(
-                exp_id, field
-            )
+            return super().read(exp_id, field)
         else:
             try:
-                return self.cache.read(
-                    exp_id, field
-                )
+                return self.cache.read(exp_id, field)
             except Exception as e:
                 print("GET:", e, field)
-                data = super().read(
-                    exp_id, field
-                )
+                data = super().read(exp_id, field)
 
-                self.cache.create(
-                    exp_id, exists_ok=True
-                )
+                self.cache.create(exp_id, exists_ok=True)
 
-                self.cache.write(
-                    exp_id, field, data
-                )
+                self.cache.write(exp_id, field, data)
                 return data
 
     def read_subfield(
@@ -634,40 +485,25 @@ class CachedRODiskStorage(DiskStorage):
         key: str,
     ):
         try:
-            return self.cache.read_subfield(
-                exp_id, field, key
-            )
+            return self.cache.read_subfield(exp_id, field, key)
         except:
-            data = super().read_subfield(
-                exp_id, field, key
-            )
+            data = super().read_subfield(exp_id, field, key)
 
-            self.cache.create(
-                exp_id, exists_ok=True
-            )
+            self.cache.create(exp_id, exists_ok=True)
 
-            self.cache.write_subfield(
-                exp_id, field, key, data
-            )
+            self.cache.write_subfield(exp_id, field, key, data)
             return data
 
 
 def decode_mongo_format(data):
 
-    if (
-        isinstance(data, dict)
-        and len(data) > 0
-    ):
+    if isinstance(data, dict) and len(data) > 0:
 
         if LIST_SYM in list(data.keys())[0]:
             #
             new_data = map(
                 lambda x: (
-                    int(
-                        x[0].replace(
-                            LIST_SYM, ""
-                        )
-                    ),
+                    int(x[0].replace(LIST_SYM, "")),
                     x[1],
                 ),
                 data.items(),
@@ -675,9 +511,7 @@ def decode_mongo_format(data):
 
             new_data = list(
                 map(
-                    lambda x: decode_mongo_format(
-                        x[1]
-                    ),
+                    lambda x: decode_mongo_format(x[1]),
                     sorted(
                         new_data,
                         key=lambda x: x[0],
@@ -688,9 +522,7 @@ def decode_mongo_format(data):
             return new_data
         else:
             for k, v in data.items():
-                data[k] = (
-                    decode_mongo_format(v)
-                )
+                data[k] = decode_mongo_format(v)
 
     return data
 
@@ -699,9 +531,7 @@ def chunked_iterable(iterable, size):
     """Helper function to split iterable into chunks of given size."""
     it = iter(iterable)
     while True:
-        chunk = list(
-            itertools.islice(it, size)
-        )
+        chunk = list(itertools.islice(it, size))
         if not chunk:
             break
         yield chunk
@@ -719,60 +549,35 @@ class MongoStorage(Storage):
     ):
         super().__init__(mode)
         self.uri = uri
-        self.client = pymongo.MongoClient(
-            uri
-        )
-        self.db = self.client.get_database(
-            database_name
-        )
+        self.client = pymongo.MongoClient(uri)
+        self.db = self.client.get_database(database_name)
 
-        self.async_client = motor.motor_asyncio.AsyncIOMotorClient(
-            uri
-        )
+        self.async_client = motor.motor_asyncio.AsyncIOMotorClient(uri)
 
-        self.async_db = (
-            self.async_client.get_database(
-                database_name
-            )
-        )
+        self.async_db = self.async_client.get_database(database_name)
 
     def get(self, exp_id: str):
         if self.is_read_mode():
-            return decode_mongo_format(
-                list(
-                    self.db[exp_id].find()
-                )[0]
-            )
+            return decode_mongo_format(list(self.db[exp_id].find())[0])
 
     def delete(self, exp_id: str):
         if self.is_write_mode():
             self.db.drop_collection(exp_id)
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def keys(self):
         if self.is_read_mode():
-            return (
-                self.db.list_collection_names()
-            )
+            return self.db.list_collection_names()
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def exists(self, exp_id: str):
         if self.is_read_mode():
-            return (
-                exp_id
-                in self.db.list_collection_names()
-            )
+            return exp_id in self.db.list_collection_names()
         else:
 
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def create(
         self,
@@ -786,15 +591,11 @@ class MongoStorage(Storage):
 
             if self.exists(exp_id):
                 if exists_ok:
-                    return self.document(
-                        exp_id
-                    )
+                    return self.document(exp_id)
                 elif force:
                     self.delete(exp_id)
                 else:
-                    raise ValueError(
-                        f"Document {exp_id} already exists."
-                    )
+                    raise ValueError(f"Document {exp_id} already exists.")
 
             collection.insert_one(
                 {
@@ -807,22 +608,14 @@ class MongoStorage(Storage):
 
             return self.document(exp_id)
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def read(self, exp_id: str, field: str):
         collection = self.db[exp_id]
         if self.is_read_mode():
-            return decode_mongo_format(
-                collection.find_one(
-                    {}, {field: 1}
-                )[field]
-            )
+            return decode_mongo_format(collection.find_one({}, {field: 1})[field])
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def read_subfield(
         self,
@@ -837,12 +630,12 @@ class MongoStorage(Storage):
                 collection.find_one(
                     {},
                     {f"{field}.{key}": 1},
-                )[field][key]
+                )[
+                    field
+                ][key]
             )
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def fields(self, exp_id: str):
         collection = self.db[exp_id]
@@ -854,27 +647,19 @@ class MongoStorage(Storage):
                 )
             )
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
-    def read_field_keys(
-        self, exp_id: str, field: str
-    ):
+    def read_field_keys(self, exp_id: str, field: str):
         collection = self.db[exp_id]
         if self.is_read_mode():
             return list(
                 filter(
                     lambda x: x != "_id",
-                    collection.find_one()[
-                        field
-                    ].keys(),
+                    collection.find_one()[field].keys(),
                 )
             )
         else:
-            raise ValueError(
-                "Read mode is not enabled."
-            )
+            raise ValueError("Read mode is not enabled.")
 
     def write(
         self,
@@ -907,13 +692,9 @@ class MongoStorage(Storage):
                                 f"{LIST_SYM}{i}",
                                 d,
                             )
-                            for i, d in enumerate(
-                                batch
-                            )
+                            for i, d in enumerate(batch)
                         ]
-                        await asyncio.gather(
-                            *tasks
-                        )
+                        await asyncio.gather(*tasks)
 
                 asyncio.run(write_async())
 
@@ -931,9 +712,7 @@ class MongoStorage(Storage):
                     upsert=True,
                 )
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def write_subfield(
         self,
@@ -942,11 +721,7 @@ class MongoStorage(Storage):
         key: str,
         data: Any,
     ):
-        asyncio.run(
-            self.write_subfield_async(
-                exp_id, field, key, data
-            )
-        )
+        asyncio.run(self.write_subfield_async(exp_id, field, key, data))
 
     async def write_subfield_async(
         self,
@@ -959,9 +734,7 @@ class MongoStorage(Storage):
         if self.is_write_mode():
             if not self.exists(exp_id):
 
-                raise ValueError(
-                    f"Collection {exp_id} does not exist."
-                )
+                raise ValueError(f"Collection {exp_id} does not exist.")
 
             if isinstance(data, dict):
 
@@ -985,9 +758,7 @@ class MongoStorage(Storage):
                         f"{LIST_SYM}{i}",
                         d,
                     )
-                    for i, d in enumerate(
-                        data
-                    )
+                    for i, d in enumerate(data)
                 ]
                 await asyncio.gather(*tasks)
 
@@ -995,24 +766,16 @@ class MongoStorage(Storage):
 
                 collection = self.async_db.get_collection(
                     exp_id,
-                    write_concern=WriteConcern(
-                        w=0
-                    ),
+                    write_concern=WriteConcern(w=0),
                 )
 
                 await collection.update_one(
                     {"_id": exp_id},
-                    {
-                        "$set": {
-                            f"{field}.{key}": data
-                        }
-                    },
+                    {"$set": {f"{field}.{key}": data}},
                     # upsert=True,
                 )
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
     def append_subfield(
         self,
@@ -1025,16 +788,10 @@ class MongoStorage(Storage):
 
             if not self.exists(exp_id):
 
-                raise ValueError(
-                    f"Collection {exp_id} does not exist."
-                )
+                raise ValueError(f"Collection {exp_id} does not exist.")
 
             try:
-                list_indexes = (
-                    self.read_field_keys(
-                        exp_id, field
-                    )
-                )
+                list_indexes = self.read_field_keys(exp_id, field)
             except KeyError:
                 list_indexes = []
 
@@ -1043,21 +800,12 @@ class MongoStorage(Storage):
 
             else:
 
-                if not (
-                    LIST_SYM
-                    in list_indexes[0]
-                ):
-                    raise ValueError(
-                        f"Field:{field} is not a list."
-                    )
+                if not (LIST_SYM in list_indexes[0]):
+                    raise ValueError(f"Field:{field} is not a list.")
 
                 max_ind = max(
                     map(
-                        lambda x: int(
-                            x.replace(
-                                LIST_SYM, ""
-                            )
-                        ),
+                        lambda x: int(x.replace(LIST_SYM, "")),
                         list_indexes,
                     )
                 )
@@ -1072,53 +820,35 @@ class MongoStorage(Storage):
             )
 
         else:
-            raise ValueError(
-                "Write mode is not enabled."
-            )
+            raise ValueError("Write mode is not enabled.")
 
 
 class StorageDocument:
-    def __init__(
-        self, exp_id: str, storage: Storage
-    ):
+    def __init__(self, exp_id: str, storage: Storage):
         self._storage = storage
         self._exp_id = exp_id
 
-    def __setitem__(
-        self, field: str, data: Any
-    ):
+    def __setitem__(self, field: str, data: Any):
 
         if "." not in field:
             return self.write(field, data)
         else:  # subfield
             fk = field.split(".")[0]
-            key = ".".join(
-                field.split(".")[1:]
-            )
+            key = ".".join(field.split(".")[1:])
 
-            return self.write_subfield(
-                fk, key, data
-            )
+            return self.write_subfield(fk, key, data)
 
-    def __getitem__(
-        self, field: str
-    ) -> Any:
+    def __getitem__(self, field: str) -> Any:
 
         if "." not in field:
             return self.read(field)
         else:  # subfield
             fk = field.split(".")[0]
-            key = ".".join(
-                field.split(".")[1:]
-            )
+            key = ".".join(field.split(".")[1:])
 
-            return self.read_subfield(
-                fk, key
-            )
+            return self.read_subfield(fk, key)
 
-    def __getattr__(
-        self, method_name: str
-    ) -> Any:
+    def __getattr__(self, method_name: str) -> Any:
 
         if method_name in [
             "to",
@@ -1127,55 +857,37 @@ class StorageDocument:
             "__str__",
             "__repr__",
         ]:
-            return super().__getattribute__(
-                method_name
-            )
+            return super().__getattribute__(method_name)
         else:
             storage = self.storage()
             exp_id = self.id()
 
-            method_name = (
-                "fields"
-                if method_name == "keys"
-                else method_name
-            )
+            method_name = "fields" if method_name == "keys" else method_name
 
             return partial(
-                getattr(
-                    storage, method_name
-                ),
+                getattr(storage, method_name),
                 exp_id,
             )
 
-    def to(
-        self, storage: Storage, **kwargs
-    ):
+    def to(self, storage: Storage, **kwargs):
         exp_id = self.id()
 
-        document = storage.create(
-            exp_id=exp_id, **kwargs
-        )
+        document = storage.create(exp_id=exp_id, **kwargs)
 
         for k in self.keys():
             data = self.read(k)
-            print(
-                f"~read {len(data)} elements from {k}"
-            )
+            print(f"~read {len(data)} elements from {k}")
             document.write(k, data)
 
         return document
 
     def id(self):
-        exp_id = super().__getattribute__(
-            "_exp_id"
-        )
+        exp_id = super().__getattribute__("_exp_id")
 
         return exp_id
 
     def storage(self):
-        return super().__getattribute__(
-            "_storage"
-        )
+        return super().__getattribute__("_storage")
 
     def __str__(self) -> str:
         return f"StorageDocument(exp_id={self.id()},data={self.keys()}, storage={self.storage()})"
@@ -1187,12 +899,8 @@ class StorageDocument:
 def test_generic_storage(STORAGE: Storage):
     outputs = []
     STORAGE.create("exp1")
-    STORAGE.write(
-        "exp1", "meta", {"name": "test1"}
-    )
-    outputs.append(
-        STORAGE.read("exp1", "meta")
-    )
+    STORAGE.write("exp1", "meta", {"name": "test1"})
+    outputs.append(STORAGE.read("exp1", "meta"))
 
     outputs.append(STORAGE.fields("exp1"))
 
@@ -1203,15 +911,9 @@ def test_generic_storage(STORAGE: Storage):
         "now",
     )
 
-    outputs.append(
-        STORAGE.read("exp1", "meta")
-    )
+    outputs.append(STORAGE.read("exp1", "meta"))
 
-    outputs.append(
-        STORAGE.read_field_keys(
-            "exp1", "meta"
-        )
-    )
+    outputs.append(STORAGE.read_field_keys("exp1", "meta"))
 
     outputs.append(STORAGE.fields("exp1"))
 
@@ -1227,11 +929,7 @@ def test_generic_storage(STORAGE: Storage):
         [{"scores": [32, 41, 62, 73]}],
     )
 
-    outputs.append(
-        STORAGE.read_subfield(
-            "exp1", "meta", "time"
-        )
-    )
+    outputs.append(STORAGE.read_subfield("exp1", "meta", "time"))
 
     outputs.append(STORAGE.get("exp1"))
     outputs.append(STORAGE.keys())
@@ -1245,31 +943,21 @@ def make_list_invariant(
     converted_outputs = []
     for output in outputs:
         if isinstance(output, list):
-            converted_outputs.append(
-                sorted(output)
-            )
+            converted_outputs.append(sorted(output))
         else:
             converted_outputs.append(output)
     return converted_outputs
 
 
-def invariant_assert(
-    output1: List[Any], output2: List[Any]
-):
+def invariant_assert(output1: List[Any], output2: List[Any]):
 
-    assert make_list_invariant(
-        output1
-    ) == make_list_invariant(
-        output2
-    ), "Test failed!"
+    assert make_list_invariant(output1) == make_list_invariant(output2), "Test failed!"
 
 
 if __name__ == "__main__":
 
     invariant_assert(
-        test_generic_storage(
-            MemoryStorage(mode="rw")
-        ),
+        test_generic_storage(MemoryStorage(mode="rw")),
         test_generic_storage(
             DiskStorage(
                 base_dir="test124/",
@@ -1279,9 +967,7 @@ if __name__ == "__main__":
     )
 
     invariant_assert(
-        test_generic_storage(
-            MemoryStorage(mode="rw")
-        ),
+        test_generic_storage(MemoryStorage(mode="rw")),
         test_generic_storage(
             MongoStorage(
                 "mongodb://localhost:27017/",
@@ -1298,9 +984,7 @@ if __name__ == "__main__":
         mode="r",
     )
 
-    d = storage.document(
-        "1a698368-1ff1-4f57-8929-7cf3b1973307"
-    )
+    d = storage.document("1a698368-1ff1-4f57-8929-7cf3b1973307")
 
     x = d["meta"]
 

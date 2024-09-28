@@ -77,17 +77,13 @@ class ExpSetup:
             return self.experiments[index]
 
         else:
-            matches = self.query(
-                {"name": index}
-            )
+            matches = self.query({"name": index})
             if len(matches) > 0:
                 return matches[0]
 
             else:
                 print(index)
-                raise KeyError(
-                    f"No experiment with name {index}"
-                )
+                raise KeyError(f"No experiment with name {index}")
 
     def _process_experiment(
         self,
@@ -113,9 +109,7 @@ class ExpSetup:
 
             return experiment
         except Exception as e:
-            print(
-                f"Missing data for : {self.base_path}- {experiment_name}: {e}"
-            )
+            print(f"Missing data for : {self.base_path}- {experiment_name}: {e}")
             return None
 
     def run_ops(self):
@@ -140,9 +134,7 @@ class ExpSetup:
         Returns:
             list: A list of metadata dictionaries for each experiment.
         """
-        return [
-            e.meta for e in self.experiments
-        ]
+        return [e.meta for e in self.experiments]
 
     def query(
         self,
@@ -175,9 +167,7 @@ class ExpSetup:
 
         new_setup = copy.deepcopy(self)
 
-        new_setup.experiments = (
-            base_experiments
-        )
+        new_setup.experiments = base_experiments
 
         return new_setup
 
@@ -217,9 +207,7 @@ class ExpSetup:
         Returns:
             None
         """
-        self.experiments = self._map(
-            func=evaluator
-        )
+        self.experiments = self._map(func=evaluator)
 
     def save(self, new_storage: Storage):
         """
@@ -231,10 +219,7 @@ class ExpSetup:
         self.storage.to(new_storage)
 
     def keys(self):
-        return [
-            e.get_name()
-            for e in self.experiments
-        ]
+        return [e.get_name() for e in self.experiments]
 
     def __str__(
         self,
@@ -245,19 +230,12 @@ class ExpSetup:
         return self.__str__()
 
     def get_all(self, key):
-        return [
-            exp.get(key)
-            for exp in self.experiments
-        ]
+        return [exp.get(key) for exp in self.experiments]
 
     def print_get_table(self, *gets):
-        metric_names = "".join(
-            [f"\t{m}" for m in gets]
-        )
+        metric_names = "".join([f"\t{m}" for m in gets])
 
-        print(
-            f"Experiment:\t\t\t{metric_names}"
-        )
+        print(f"Experiment:\t\t\t{metric_names}")
         for (
             i,
             exp,
@@ -267,19 +245,13 @@ class ExpSetup:
             for m in gets:
                 try:
                     value = exp.get(m)
-                    metric_values += (
-                        f"\t{value:.4f}"
-                    )
+                    metric_values += f"\t{value:.4f}"
                 except:
                     metric_values += "\t-"
 
-            print(
-                f"ExperimentResults:--{exp.get_name()}{metric_values}"
-            )
+            print(f"ExperimentResults:--{exp.get_name()}{metric_values}")
 
-    def get_support(
-        self, axis_of_variation
-    ):
+    def get_support(self, axis_of_variation):
         """
         Get the support for metadata based on common criteria and axis of variation.
 
@@ -292,16 +264,11 @@ class ExpSetup:
         """
         exps = self.experiments
 
-        exp_on_axis = exps.map(
-            lambda x: {
-                k: x.meta.get(k, -1)
-                for k in axis_of_variation
-            }
+        exp_on_axis = map(
+            lambda x: {k: x.meta.get(k, -1) for k in axis_of_variation}, exps
         )
 
-        support = {
-            k: [] for k in axis_of_variation
-        }
+        support = {k: [] for k in axis_of_variation}
 
         for e in exp_on_axis:
             for k, v in e.items():
@@ -319,14 +286,12 @@ class ExpSetup:
         def safe_apply_func(experiment):
             try:
                 return (
-                    func(experiment)
+                    experiment.call_locked(func)
                     if not experiment.islocked()
                     else experiment
                 )
             except Exception as e:
-                print(
-                    f"Error in applying function: {e} - {experiment.get_name()}"
-                )
+                print(f"Error in applying function: {e} - {experiment.get_name()}")
                 return experiment
 
         self._map(safe_apply_func)
@@ -343,9 +308,7 @@ class ExpSetup:
     def filter(self, func):
         new_setup = copy.deepcopy(self)
 
-        new_setup.experiments = list(
-            filter(func, self.experiments)
-        )
+        new_setup.experiments = list(filter(func, self.experiments))
 
         return new_setup
 
@@ -363,17 +326,12 @@ class ExpSetup:
                 return exp.get(key)
 
         new_setup.experiments = list(
-            {
-                key_factory(e): e
-                for e in self.experiments
-            }.values()
+            {key_factory(e): e for e in self.experiments}.values()
         )
 
         return new_setup
 
     def sort(self, key: str):
         new_setup = copy.deepcopy(self)
-        new_setup.experiments.sort(
-            key=lambda exp: exp.get(key)
-        )
+        new_setup.experiments.sort(key=lambda exp: exp.get(key))
         return new_setup

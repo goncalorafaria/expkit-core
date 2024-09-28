@@ -16,16 +16,12 @@ class Evalutor(Operation):
     def __init__(self, eval_name: str):
         super().__init__(
             type=OperationType.EXP,
-            func=lambda e: e.call_locked(
-                self.apply
-            ),
+            func=self.apply,
             key=None,
         )
         self.eval_name = eval_name
 
-    def eval(
-        self, experiment: Exp
-    ) -> List[Dict[str, Any]]:
+    def eval(self, experiment: Exp) -> List[Dict[str, Any]]:
         raise NotImplementedError
 
     def apply(self, exp: Exp) -> Exp:
