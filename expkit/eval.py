@@ -25,24 +25,23 @@ class Evalutor(Operation):
         raise NotImplementedError
 
     def apply(self, exp: Exp) -> Exp:
-
-        if exp.has_eval(self.eval_name):
+        """if exp.has_eval(self.eval_name):
             logging.info(
                 f"Skipping evaluation {self.eval_name} to experiment {exp.get_name()}"
             )
             return exp
-        else:
-            logging.info(
-                f"Starting evaluation {self.eval_name} to experiment {exp.get_name()}"
-            )
+        else:"""
+        logging.info(
+            f"Starting evaluation {self.eval_name} to experiment {exp.get_name()}"
+        )
 
-            exp.add_eval(
-                self.eval_name,
-                self.eval(exp),
-            )
+        exp.add_eval(
+            self.eval_name,
+            self.eval(exp),
+        )
 
-            logging.info(
-                f"Finished evaluation {self.eval_name} to experiment {exp.get_name()}"
-            )
+        logging.info(
+            f"Finished evaluation {self.eval_name} to experiment {exp.get_name()}"
+        )
 
-            return exp
+        return exp

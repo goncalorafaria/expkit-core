@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from functools import partial
 import copy
 import os
+from tqdm import tqdm
 
 
 class ExpSetup:
@@ -171,7 +172,7 @@ class ExpSetup:
 
         return new_setup
 
-    def _map(self, func):
+    def _map(self, func, use_tqdm=False):
         """
         Apply a function to each experiment in the list.
 
@@ -187,7 +188,7 @@ class ExpSetup:
                 (
                     map(
                         func,
-                        self.experiments,
+                        tqdm(self.experiments),
                     )
                 ),
             )
@@ -298,10 +299,10 @@ class ExpSetup:
 
         return self
 
-    def map(self, func):
+    def map(self, func, use_tqdm=False):
 
         new_setup = copy.deepcopy(self)
-        new_setup._map(func)
+        new_setup._map(func, use_tqdm=use_tqdm)
 
         return new_setup
 

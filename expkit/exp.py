@@ -36,10 +36,7 @@ def has_lock(
     document,
 ):
     if "lock" in document.keys():
-        return (
-            document.read("lock")
-            == "closed"
-        )
+        return document.read("lock") == "closed"
     else:
         return False
 
@@ -60,21 +57,13 @@ class Exp:
             meta: A dictionary containing metadata about the experiment.
         """
 
-        self.name = (
-            str(uuid.uuid4())
-            if name is None
-            else name
-        )
+        self.name = str(uuid.uuid4()) if name is None else name
 
         if storage is None:
-            storage = MemoryStorage(
-                mode="rw"
-            )
+            storage = MemoryStorage(mode="rw")
 
         if not storage.exists(self.name):
-            document_storage = (
-                storage.create(self.name)
-            )
+            document_storage = storage.create(self.name)
 
             env_context_variables = {
                 k: v
@@ -99,63 +88,39 @@ class Exp:
             else:
                 meta = {
                     **meta,
-                    **{
-                        k: v
-                        for k, v in env_context_variables.items()
-                        if k not in meta
-                    },
+                    **{k: v for k, v in env_context_variables.items() if k not in meta},
                 }
 
-            document_storage.write(
-                "meta", meta
-            )
+            document_storage.write("meta", meta)
         else:
 
-            document_storage = (
-                storage.document(self.name)
-            )
+            document_storage = storage.document(self.name)
 
             if meta is not None:
                 assert (
-                    document_storage.read(
-                        "meta"
-                    )
-                    == meta
+                    document_storage.read("meta") == meta
                 ), f"Meta data mismatch {document_storage.read('meta')} != {meta}"
             else:
-                meta = (
-                    document_storage.read(
-                        "meta"
-                    )
-                )
+                meta = document_storage.read("meta")
 
-        self.meta = (
-            {} if meta is None else meta
-        )
+        self.meta = {} if meta is None else meta
 
-        self.document_storage = (
-            document_storage
-        )
+        self.document_storage = document_storage
 
-    def instances(
-        self, lazy_iterable=False
-    ):
-        if lazy_iterable:
-            return self.document_storage.iterable(
-                "data"
-            )
-        else:
-            return (
-                self.document_storage.read(
-                    "data"
-                )
-            )
+    def instances(self, lazy_iterable=False):
+
+        try:
+            if lazy_iterable:
+                return self.document_storage.iterable("data")
+            else:
+                return self.document_storage.read("data")
+        except FileNotFoundError:
+            return []
 
     def evals(self):
 
         return {
-            key: self.get_eval(key)
-            for key in self.load_eval_meta()
+            key: self.get_eval(value) for key, value in self.load_eval_meta().items()
         }
 
     def check_property(self, k, v):
@@ -173,19 +138,13 @@ class Exp:
         if k == "name":
             return self.name == v
         else:
-            return (k in self.meta) and (
-                self.meta[k] == v
-            )
+            return (k in self.meta) and (self.meta[k] == v)
 
     def __deepcopy__(self, memo):
         e = Exp(
             name=self.name,
-            meta=copy.deepcopy(
-                self.meta, memo
-            ),
-            storage=copy.deepcopy(
-                self.document_storage.storage()
-            ),
+            meta=copy.deepcopy(self.meta, memo),
+            storage=copy.deepcopy(self.document_storage.storage()),
             # lazy=self.lazy,
         )
 
@@ -193,9 +152,7 @@ class Exp:
 
     def islocked(self):
 
-        return has_lock(
-            self.document_storage
-        )
+        return has_lock(self.document_storage)
 
     def call_locked(self, func):
 
@@ -220,8 +177,9 @@ class Exp:
 
     def get_eval(self, eval_key):
 
+        path = self.load_eval_meta()[eval_key]
         return self.document_storage.read(
-            "eval_" + eval_key,
+            path,
         )
 
     def __str__(
@@ -261,9 +219,7 @@ class Exp:
         elif key in self.meta:
             return self.meta[key]
         else:
-            raise ValueError(
-                f"key : {key} not found"
-            )
+            raise ValueError(f"key : {key} not found")
 
     def add_eval(
         self,
@@ -278,9 +234,7 @@ class Exp:
             data: A list of dictionaries representing the evaluation data.
         """
 
-        self.document_storage.write(
-            "eval_" + key, data
-        )
+        self.document_storage.write("eval_" + key, data)
 
         # self.evals[key] = [
         #    InstanceEval(**d) for d in data
@@ -320,16 +274,10 @@ class Exp:
             outputs: A list of lists of dictionaries representing the output data for each instance.
         """
 
-        for input_data, output in zip(
-            inputs, outputs
-        ):
-            self.add_instance(
-                input_data, output
-            )
+        for input_data, output in zip(inputs, outputs):
+            self.add_instance(input_data, output)
 
-    def save(
-        self, storage: Storage, **kwargs
-    ):
+    def save(self, storage: Storage, **kwargs):
         """
         Save the experiment to disk.
 
@@ -337,23 +285,18 @@ class Exp:
             save_path: The path to save the experiment to.
         """
 
-        self.document_storage.to(
-            storage, **kwargs
-        )
+        self.document_storage.to(storage, **kwargs)
 
     def has_eval(self, key):
         return key in self.load_eval_meta()
 
-    def load_eval_meta(self):
-        run_files = (
-            self.document_storage.keys()
-        )
+    def has_data(self):
+        return "data" in self.document_storage.fields()
 
-        eval_files = {
-            rf.split("_")[1]: rf
-            for rf in run_files
-            if "eval_" in rf
-        }
+    def load_eval_meta(self):
+        run_files = self.document_storage.keys()
+
+        eval_files = {rf.split("_")[1]: rf for rf in run_files if "eval_" in rf}
 
         return eval_files
 
@@ -398,9 +341,7 @@ if __name__ == "__main__":
         mode="rw",
     )
 
-    data_exemp = new_storage.document(
-        "83c9f882-8922-4cac-a334-b0efcb735fe4"
-    )
+    data_exemp = new_storage.document("83c9f882-8922-4cac-a334-b0efcb735fe4")
     cool_outer_local_variable = 4
     exp1 = Exp.load(
         storage=storage,
@@ -436,9 +377,7 @@ if __name__ == "__main__":
 
     # storage.to(new_storage, force=True)
 
-    d = storage.document(
-        "1a698368-1ff1-4f57-8929-7cf3b1973307"
-    )
+    d = storage.document("1a698368-1ff1-4f57-8929-7cf3b1973307")
 
     exp = Exp.load(
         storage=new_storage,
