@@ -47,12 +47,8 @@ class PExp(Exp):
 
         e = PExp(
             name=self.name,
-            meta=copy.deepcopy(
-                self.meta, memo
-            ),
-            storage=copy.deepcopy(
-                self.document_storage.storage()
-            ),
+            meta=copy.deepcopy(self.meta, memo),
+            storage=copy.deepcopy(self.document_storage.storage()),
             ops=copy.deepcopy(self.ops),
         )
 
@@ -64,10 +60,12 @@ class PExp(Exp):
 
         """
 
-        self.ops_results = {
-            key: op(self)
-            for key, op in self.ops.items()
-        }
+        self.ops_results = {}
+        for key, op in self.ops.items():
+            try:
+                self.ops_results[key] = op(self)
+            except Exception as e:
+                pass
         return self
 
     def get(self, key):
@@ -90,9 +88,7 @@ class PExp(Exp):
             if key in self.ops_results:
                 return self.ops_results[key]
             else:
-                raise ValueError(
-                    f"key : {key} not found"
-                )
+                raise ValueError(f"key : {key} not found")
 
     @staticmethod
     def load(
