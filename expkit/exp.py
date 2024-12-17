@@ -117,6 +117,13 @@ class Exp:
         except FileNotFoundError:
             return []
 
+    def __len__(self):
+
+        count = 0
+        for _ in self.instances(lazy_iterable=True):
+            count += 1
+        return count
+
     def evals(self):
 
         return {
@@ -349,9 +356,7 @@ if __name__ == "__main__":
     )
 
     new_exp = Exp()
-    import pdb
 
-    pdb.set_trace()
     # new_exp.save(new_storage, force=True)
 
     new_exp.add_instance(

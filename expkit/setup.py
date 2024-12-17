@@ -49,7 +49,7 @@ class ExpSetup:
 
         self.experiments = list(
             filter(
-                None,
+                lambda x: x is not None,
                 map(
                     self._process_experiment,
                     self.storage.keys(),
