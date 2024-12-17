@@ -1,24 +1,12 @@
-from dataclasses import dataclass
-import pymongo
-from typing import List, Any
-from copy import deepcopy
-import json
 import os
 import shutil
-from tqdm import tqdm
-from functools import partial
-from concurrent.futures import (
-    ThreadPoolExecutor,
-)
+
 import orjson
-import motor.motor_asyncio
-from pymongo import WriteConcern
-import asyncio
-from types import MappingProxyType
-import itertools
+
 import ijson
 
 from expkit.storage.base import Storage
+from expkit.storage.cache import CachedRO
 
 
 class DiskStorage(Storage):
@@ -215,42 +203,10 @@ class DiskStorage(Storage):
             raise ValueError("Write mode is not enabled.")
 
 
-class CachedRODiskStorage(DiskStorage):
+class CachedRODiskStorage(CachedRO):
     def __init__(self, base_dir: str):
-        super().__init__(base_dir, "r")
-        self.cache = MemoryStorage("rw")
-
-    def clear(self):
-        self.cache = MemoryStorage("rw")
-
-    def read(self, exp_id: str, field: str):
-
-        if field == "meta":
-            return super().read(exp_id, field)
-        else:
-            try:
-                return self.cache.read(exp_id, field)
-            except Exception as e:
-                print("GET:", e, field)
-                data = super().read(exp_id, field)
-
-                self.cache.create(exp_id, exists_ok=True)
-
-                self.cache.write(exp_id, field, data)
-                return data
-
-    def read_subfield(
-        self,
-        exp_id: str,
-        field: str,
-        key: str,
-    ):
-        try:
-            return self.cache.read_subfield(exp_id, field, key)
-        except:
-            data = super().read_subfield(exp_id, field, key)
-
-            self.cache.create(exp_id, exists_ok=True)
-
-            self.cache.write_subfield(exp_id, field, key, data)
-            return data
+        storage = DiskStorage(
+            base_dir,
+            mode="r",
+        )
+        super().__init__(storage)
