@@ -4,7 +4,7 @@ ExpKit is a flexible experiment management framework for machine learning projec
 
 ## Features
 
-- Multiple storage backends (Disk, Zip, Memory)
+- Multiple storage backends (Disk, Zip, Memory, Mongo)
 - Caching support with ROCache
 - Flexible metadata management
 - Batch processing of inputs/outputs
