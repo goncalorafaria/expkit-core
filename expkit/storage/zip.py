@@ -32,6 +32,19 @@ class ZipStorage(Storage):
         super().__init__(mode)
         self.base_dir = base_dir
 
+        if not self.valid_storage():
+            raise ValueError(
+                "Invalid storage. This path already has non-zip files. It has a storage of other type."
+            )
+
+    def valid_storage(self) -> List[str]:
+        if not self.is_read_mode():
+            raise ValueError("Read mode is not enabled.")
+
+        return not (
+            len([1 for f in os.listdir(self.base_dir) if not f.endswith(".zip")]) > 0
+        )
+
     def _get_zip_path(self, exp_id: str) -> str:
         return f"{self.base_dir}/{exp_id}.zip"
 

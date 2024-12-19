@@ -7,12 +7,24 @@ import ijson
 
 from expkit.storage.base import Storage
 from expkit.storage.cache import CachedRO
+from typing import Any, List
 
 
 class DiskStorage(Storage):
     def __init__(self, base_dir: str, mode: str = "r"):
         super().__init__(mode)
         self.base_dir = base_dir
+
+        if not self.valid_storage():
+            raise ValueError(
+                "Invalid storage. This path already has dir files. It has a storage of other type."
+            )
+
+    def valid_storage(self) -> List[str]:
+        if not self.is_read_mode():
+            raise ValueError("Read mode is not enabled.")
+
+        return not (len([1 for f in os.listdir(self.base_dir) if "." in f]) > 0)
 
     def create(
         self,

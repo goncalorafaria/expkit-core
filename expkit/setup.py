@@ -110,7 +110,7 @@ class ExpSetup:
 
             return experiment
         except Exception as e:
-            print(f"Missing data for : {self.base_path}- {experiment_name}: {e}")
+            print(f"Missing data for  {experiment_name}: {e}")
             return None
 
     def run_ops(self):

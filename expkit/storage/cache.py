@@ -1,4 +1,3 @@
-
 import asyncio
 from types import MappingProxyType
 import itertools
@@ -9,6 +8,7 @@ from expkit.storage.memory import MemoryStorage
 
 
 class CachedRO(Storage):
+
     def __init__(self, storage: Storage):
 
         super().__init__("r")
@@ -20,6 +20,17 @@ class CachedRO(Storage):
 
     def clear(self):
         self.cache = MemoryStorage("rw")
+
+    def keys(self):
+        return self.source_storage.keys()
+
+    def fields(self, exp_id):
+        return self.source_storage.fields(exp_id)
+
+    def get(self, exp_id: str):
+        g = self.source_storage.get(exp_id)
+
+        return g
 
     def read(self, exp_id: str, field: str):
 
@@ -52,3 +63,6 @@ class CachedRO(Storage):
 
             self.cache.write_subfield(exp_id, field, key, data)
             return data
+
+    def exists(self, exp_id: str) -> bool:
+        return self.source_storage.exists(exp_id)
