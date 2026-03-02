@@ -126,9 +126,7 @@ class Exp:
 
     def evals(self):
 
-        return {
-            key: self.get_eval(value) for key, value in self.load_eval_meta().items()
-        }
+        return {key: self.get_eval(key) for key, value in self.load_eval_meta().items()}
 
     def check_property(self, k, v):
         """
@@ -189,13 +187,19 @@ class Exp:
             path,
         )
 
-    def __str__(
-        self,
-    ):
+    def __str__(self):
         """
         Return a string representation of the Exp object.
         """
-        return f"Experiment[{self.name}](instance=...,evals={list(self.load_eval_meta())}, meta={self.meta})"
+        name_str = f"\033[1m\033[92m{self.name}\033[0m\033[22m"
+        evals_str = list(self.load_eval_meta())
+        meta_str = ", ".join(f"\033[91m{k}\033[0m: {v}" for k, v in self.meta.items())
+
+        return (
+            f"\033[93mExperiment\033[0m[\033[92m{name_str}\033[0m]"
+            f"(\033[94minstance\033[0m=..., \033[94mevals\033[0m={evals_str}, "
+            f"\033[94mmeta\033[0m={{ {meta_str} }})"
+        )
 
     def __repr__(self) -> str:
         """
@@ -249,8 +253,8 @@ class Exp:
 
     def add_instance(
         self,
-        input_data=Dict[str, Any],
-        output=List[Dict[str, Any]],
+        input=Dict[str, Any],
+        outputs=List[Dict[str, Any]],
     ):
         """
         Add an instance to the experiment.
@@ -263,8 +267,8 @@ class Exp:
         self.document_storage.append_subfield(
             "data",
             {
-                "input": input_data,
-                "outputs": output,
+                "input": input,
+                "outputs": outputs,
             },
         )
 
@@ -303,7 +307,7 @@ class Exp:
     def load_eval_meta(self):
         run_files = self.document_storage.keys()
 
-        eval_files = {rf.split("_")[1]: rf for rf in run_files if "eval_" in rf}
+        eval_files = {rf.replace("eval_", ""): rf for rf in run_files if "eval_" in rf}
 
         return eval_files
 

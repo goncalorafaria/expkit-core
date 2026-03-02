@@ -332,7 +332,7 @@ class ExpSetup:
 
         return new_setup
 
-    def sort(self, key: str):
+    def sort(self, key: str, reverse: bool = False):
         new_setup = copy.deepcopy(self)
-        new_setup.experiments.sort(key=lambda exp: exp.get(key))
+        new_setup.experiments.sort(key=lambda exp: exp.get(key), reverse=reverse)
         return new_setup

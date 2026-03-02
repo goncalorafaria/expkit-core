@@ -65,6 +65,7 @@ class PExp(Exp):
             try:
                 self.ops_results[key] = op(self)
             except Exception as e:
+                print(e)
                 pass
         return self
 

@@ -8,7 +8,7 @@ with open("requirements.txt", "r") as fr:
 
 setuptools.setup(
     name="expkit-core",
-    version="1.0.5",
+    version="1.0.7",
     author="Goncalo Faria",
     author_email="gfaria@cs.washington.edu",
     description="Package for managing research experiments text results.",
